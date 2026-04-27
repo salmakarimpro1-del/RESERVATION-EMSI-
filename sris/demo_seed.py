@@ -23,9 +23,9 @@ def ensure_user(username, password, **defaults):
 def build_room_payloads():
     payloads = []
 
-    for floor in range(1, 7):
+    for floor in range(1, 6):
         for index in range(1, 9):
-            code = f'SC{floor}{index:02d}'
+            code = f'SC{floor}0{index}'
             payloads.append(
                 {
                     'building': 'EMSI',
@@ -42,7 +42,7 @@ def build_room_payloads():
             )
 
         for index in range(1, 3):
-            code = f'LI{floor}{index:02d}'
+            code = f'LI{floor}0{index}'
             payloads.append(
                 {
                     'building': 'EMSI',
@@ -58,22 +58,34 @@ def build_room_payloads():
                 }
             )
 
-    for index in range(1, 5):
-        code = f'CONF{index:02d}'
-        payloads.append(
+    payloads.extend(
+        [
             {
                 'building': 'EMSI',
-                'floor': 0,
-                'code': code,
-                'name': f'Salle de conference {index}',
+                'floor': 2,
+                'code': 'CONF201',
+                'name': 'Salle de conference Horizon',
                 'room_type': Room.TYPE_CONFERENCE,
-                'capacity': 120,
-                'location': 'EMSI - Pole conferences',
-                'description': 'Grande salle dediee aux conferences, soutenances et evenements.',
-                'equipment': 'micro, sonorisation, projecteur, wifi, scene',
+                'capacity': 140,
+                'location': 'EMSI - Etage 2',
+                'description': 'Grande salle dediee aux conferences, soutenances et evenements institutionnels.',
+                'equipment': 'micro, sonorisation, projecteur, wifi, camera, scene',
                 'is_active': True,
-            }
-        )
+            },
+            {
+                'building': 'EMSI',
+                'floor': 4,
+                'code': 'CONF401',
+                'name': 'Salle de conference Innovation',
+                'room_type': Room.TYPE_CONFERENCE,
+                'capacity': 100,
+                'location': 'EMSI - Etage 4',
+                'description': 'Espace premium pour workshops, demo days, jurys et reunions de direction.',
+                'equipment': 'visioconference, sonorisation, projecteur, wifi, tableau interactif',
+                'is_active': True,
+            },
+        ]
+    )
 
     return payloads
 
@@ -147,6 +159,8 @@ def seed_demo_data():
             'end_time': time(11, 0),
             'purpose': 'Cours de genie logiciel',
             'status': 'CONFIRMEE',
+            'activity_type': Booking.ACTIVITY_CLASS,
+            'attendees_count': 28,
         },
         {
             'user': teacher,
@@ -156,15 +170,19 @@ def seed_demo_data():
             'end_time': time(16, 0),
             'purpose': 'TP developpement web',
             'status': 'EN_ATTENTE',
+            'activity_type': Booking.ACTIVITY_PRACTICAL,
+            'attendees_count': 20,
         },
         {
             'user': student,
-            'room': created_rooms['CONF01'],
+            'room': created_rooms['CONF201'],
             'date': next_week,
             'start_time': time(10, 0),
             'end_time': time(12, 0),
             'purpose': 'Evenement club etudiants',
             'status': 'EN_ATTENTE',
+            'activity_type': Booking.ACTIVITY_CLUB,
+            'attendees_count': 65,
         },
     ]
 
@@ -178,6 +196,8 @@ def seed_demo_data():
                 'end_time': payload['end_time'],
                 'purpose': payload['purpose'],
                 'status': payload['status'],
+                'activity_type': payload['activity_type'],
+                'attendees_count': payload['attendees_count'],
             },
         )
 

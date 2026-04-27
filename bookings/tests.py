@@ -269,3 +269,37 @@ class BookingWebViewsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, 'CONFIRMEE')
+
+    def test_admin_center_requires_staff(self):
+        self.client.login(username='salma_web', password='password123')
+        response = self.client.get('/admin-center/', follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "permission")
+
+    def test_admin_center_bulk_approve(self):
+        second_booking = Booking.objects.create(
+            user=self.user,
+            room=self.room,
+            date=date.today() + timedelta(days=3),
+            start_time=time(10, 0),
+            end_time=time(11, 0),
+            purpose='Deuxieme reservation web',
+            status='EN_ATTENTE',
+        )
+
+        self.client.login(username='admin_web', password='password123')
+        response = self.client.post(
+            '/admin-center/',
+            {
+                'action': 'approve',
+                'booking_ids': [str(self.booking.id), str(second_booking.id)],
+                'admin_message': 'Validation admin EMSI',
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.booking.refresh_from_db()
+        second_booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CONFIRMEE')
+        self.assertEqual(second_booking.status, 'CONFIRMEE')
+        self.assertEqual(self.booking.admin_message, 'Validation admin EMSI')

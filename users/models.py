@@ -29,3 +29,8 @@ class CustomUser(AbstractUser):
     def full_name_or_username(self):
         full_name = self.get_full_name().strip()
         return full_name or self.username
+
+    @property
+    def profile_label(self):
+        role = self.get_role_display()
+        return f'{role} - {self.department}' if self.department else role

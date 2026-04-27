@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1 class="h3 mb-1">{% if booking %}Modifier la reservation{% else %}Nouvelle reservation{% endif %}</h1>
-        <p class="text-muted mb-0">Reservez une salle EMSI pour un cours, un TP, une reunion ou un evenement.</p>
+        <p class="text-muted mb-0">Workflow EMSI: demande, validation admin, notification, puis suivi dans le calendrier central.</p>
     </div>
     <a href="{% url 'booking_calendar' %}" class="btn btn-outline-primary">Calendrier</a>
 </div>
@@ -37,7 +37,8 @@
     <div class="col-lg-4">
         <div class="card">
             <div class="card-body">
-                <h2 class="h5 mb-3">Verifier la disponibilite</h2>
+                <h2 class="h5 mb-3">Aide a la decision</h2>
+                <p class="small text-muted">Choisissez une salle adaptee a votre activite et au nombre de participants avant de soumettre la demande.</p>
                 <div class="vstack gap-3">
                     <div>
                         <label class="form-label" for="checkRoom">Salle</label>

@@ -7,6 +7,25 @@
     #calendar {
         min-height: 720px;
     }
+
+    .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        display: inline-block;
+    }
+
+    .fc-event-en_attente {
+        background: #fff3cd;
+        border-color: #f0c36d;
+        color: #664d03;
+    }
+
+    .fc-event-confirmee {
+        background: #d1e7dd;
+        border-color: #75b798;
+        color: #0f5132;
+    }
 </style>
 {% endblock %}
 
@@ -41,6 +60,10 @@
             <div class="col-md-2 d-flex align-items-end">
                 <button class="btn btn-primary w-100" type="button" onclick="refetchEvents()">Appliquer</button>
             </div>
+        </div>
+        <div class="d-flex flex-wrap gap-3 mt-3 small text-muted">
+            <span><span class="legend-dot" style="background:#fff3cd;"></span> Demande en attente</span>
+            <span><span class="legend-dot" style="background:#d1e7dd;"></span> Reservation approuvee</span>
         </div>
     </div>
 </div>

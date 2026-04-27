@@ -46,5 +46,13 @@ class Room(models.Model):
     @property
     def floor_label(self):
         if self.room_type == self.TYPE_CONFERENCE:
-            return 'Zone conferences'
+            return f'Etage {self.floor} - Conference'
         return f'Etage {self.floor}'
+
+    @property
+    def room_family(self):
+        if self.room_type == self.TYPE_CLASSROOM:
+            return 'SC'
+        if self.room_type == self.TYPE_LAB:
+            return 'LI'
+        return 'CONF'

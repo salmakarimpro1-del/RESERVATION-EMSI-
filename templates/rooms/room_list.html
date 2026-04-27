@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1 class="h3 mb-1">Salles EMSI</h1>
-        <p class="text-muted mb-0">6 etages, salles de cours, laboratoires LI et salles de conference.</p>
+        <p class="text-muted mb-0">5 etages, 8 salles SC et 2 laboratoires LI par etage, plus 2 espaces conference premium.</p>
     </div>
     {% if user.is_staff %}
     <a href="{% url 'room_create' %}" class="btn btn-primary">Ajouter une salle</a>
@@ -85,4 +85,35 @@
     </div>
     {% endfor %}
 </div>
+
+{% if floors_summary %}
+<div class="card mt-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 mb-0">Lecture par etage</h2>
+            <span class="badge text-bg-light border">{{ floors_summary|length }} etages visibles</span>
+        </div>
+        <div class="row g-3">
+            {% for level in floors_summary %}
+            <div class="col-lg-6">
+                <div class="border rounded p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-semibold">Etage {{ level.floor }}</div>
+                        <span class="badge text-bg-light border">{{ level.rooms_count }} salles</span>
+                    </div>
+                    <div class="small text-muted mb-3">
+                        {{ level.classrooms_count }} salles de cours, {{ level.labs_count }} labos{% if level.conferences_count %}, {{ level.conferences_count }} conference{% endif %}
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for room in level.rooms %}
+                        <a href="{% url 'room_detail' room.id %}" class="badge text-bg-light border text-decoration-none">{{ room.code }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

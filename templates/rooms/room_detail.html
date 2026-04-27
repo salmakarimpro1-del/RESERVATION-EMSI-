@@ -23,6 +23,7 @@
                 <h2 class="h5">Fiche salle</h2>
                 <p class="mb-2"><strong>Nom :</strong> {{ room.display_name }}</p>
                 <p class="mb-2"><strong>Capacite :</strong> {{ room.capacity }} places</p>
+                <p class="mb-2"><strong>Famille :</strong> {{ room.room_family }}</p>
                 <p class="mb-2"><strong>Emplacement :</strong> {{ room.location|default:room.floor_label }}</p>
                 <p class="mb-2"><strong>Statut :</strong> {% if room.is_active %}Active{% else %}Inactive{% endif %}</p>
                 <p class="mb-3"><strong>Description :</strong><br>{{ room.description|default:'Aucune description' }}</p>
@@ -51,6 +52,22 @@
         {% endif %}
     </div>
     <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h5 mb-0">Voisinage de l'etage</h2>
+                    <span class="badge text-bg-light border">{{ room.floor_label }}</span>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge bg-primary-subtle text-primary-emphasis border">{{ room.code }}</span>
+                    {% for sibling in same_floor_rooms %}
+                    <a href="{% url 'room_detail' sibling.id %}" class="badge text-bg-light border text-decoration-none">{{ sibling.code }}</a>
+                    {% empty %}
+                    <span class="text-muted small">Aucune autre salle sur cet etage.</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
         <div class="card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -63,6 +80,7 @@
                             <tr>
                                 <th>Date</th>
                                 <th>Horaire</th>
+                                <th>Activite</th>
                                 <th>Demandeur</th>
                                 <th>Statut</th>
                             </tr>
@@ -72,11 +90,12 @@
                             <tr>
                                 <td>{{ booking.date }}</td>
                                 <td>{{ booking.start_time }} - {{ booking.end_time }}</td>
+                                <td>{{ booking.get_activity_type_display }}</td>
                                 <td>{{ booking.user.full_name_or_username }}</td>
                                 <td><span class="status-badge status-{{ booking.status|lower }}">{{ booking.get_status_display }}</span></td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="4" class="text-muted text-center py-4">Aucune reservation a venir.</td></tr>
+                            <tr><td colspan="5" class="text-muted text-center py-4">Aucune reservation a venir.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

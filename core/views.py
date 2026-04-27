@@ -9,13 +9,37 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from bookings.forms import BookingForm
+from bookings.forms import BookingForm, BookingReviewForm
 from bookings.models import Booking
-from bookings.utils import calculate_available_slots
+from bookings.utils import calculate_available_slots, notify_booking_status
 from rooms.forms import RoomForm
 from rooms.models import Room
 from users.forms import ProfileForm, RegisterForm
 from users.models import CustomUser
+
+
+def _apply_booking_action(booking, reviewer, action, message_text=''):
+    if action == 'approve':
+        booking.mark_reviewed(
+            reviewer=reviewer,
+            status=Booking.STATUS_APPROVED,
+            message=message_text,
+        )
+    elif action == 'reject':
+        booking.mark_reviewed(
+            reviewer=reviewer,
+            status=Booking.STATUS_REJECTED,
+            message=message_text,
+        )
+    elif action == 'cancel':
+        booking.status = Booking.STATUS_CANCELLED
+        if message_text:
+            booking.admin_message = message_text
+    else:
+        raise ValueError('Action admin inconnue.')
+
+    booking.save()
+    notify_booking_status(booking)
 
 
 def home_view(request):
@@ -70,28 +94,187 @@ def dashboard_view(request):
     today = timezone.localdate()
     scoped_bookings = Booking.objects.all() if request.user.is_staff else Booking.objects.filter(user=request.user)
     recent_bookings = scoped_bookings.select_related('room', 'user').order_by('-created_at')[:6]
+    all_active_rooms = list(Room.objects.filter(is_active=True).order_by('floor', 'code'))
 
     room_counts = Room.objects.filter(is_active=True).values('room_type').annotate(total=Count('id')).order_by('room_type')
     room_overview = {row['room_type']: row['total'] for row in room_counts}
+    floor_overview = []
+    for floor in range(1, 6):
+        floor_rooms = [room for room in all_active_rooms if room.floor == floor]
+        floor_overview.append(
+            {
+                'floor': floor,
+                'classrooms': [room for room in floor_rooms if room.room_type == Room.TYPE_CLASSROOM],
+                'labs': [room for room in floor_rooms if room.room_type == Room.TYPE_LAB],
+                'conferences': [room for room in floor_rooms if room.room_type == Room.TYPE_CONFERENCE],
+            }
+        )
 
     context = {
         'statistics': {
             'total_bookings': scoped_bookings.count(),
             'today_bookings': scoped_bookings.filter(date=today).count(),
-            'upcoming_bookings': scoped_bookings.filter(date__gte=today, status__in=['EN_ATTENTE', 'CONFIRMEE']).count(),
-            'confirmed_bookings': scoped_bookings.filter(status='CONFIRMEE').count(),
-            'cancelled_bookings': scoped_bookings.filter(status='ANNULEE').count(),
+            'upcoming_bookings': scoped_bookings.filter(
+                date__gte=today,
+                status__in=[Booking.STATUS_PENDING, Booking.STATUS_APPROVED],
+            ).count(),
+            'pending_bookings': scoped_bookings.filter(status=Booking.STATUS_PENDING).count(),
+            'confirmed_bookings': scoped_bookings.filter(status=Booking.STATUS_APPROVED).count(),
+            'rejected_bookings': scoped_bookings.filter(status=Booking.STATUS_REJECTED).count(),
+            'cancelled_bookings': scoped_bookings.filter(status=Booking.STATUS_CANCELLED).count(),
             'active_rooms': Room.objects.filter(is_active=True).count(),
         },
         'recent_bookings': recent_bookings,
         'room_usage': Room.objects.filter(is_active=True).annotate(total=Count('booking')).order_by('-total', 'code')[:6],
+        'pending_bookings': (
+            Booking.objects.filter(status=Booking.STATUS_PENDING).select_related('room', 'user').order_by('date', 'start_time')[:5]
+            if request.user.is_staff
+            else []
+        ),
         'room_overview': {
             'classrooms': room_overview.get(Room.TYPE_CLASSROOM, 0),
             'labs': room_overview.get(Room.TYPE_LAB, 0),
             'conferences': room_overview.get(Room.TYPE_CONFERENCE, 0),
         },
+        'floor_overview': floor_overview,
     }
     return render(request, 'sris/dashboard.html', context)
+
+
+@login_required
+def admin_center_view(request):
+    if not request.user.is_staff:
+        messages.error(request, "Vous n'avez pas la permission d'acceder au centre d'administration.")
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        booking_ids = request.POST.getlist('booking_ids')
+        message_text = request.POST.get('admin_message', '').strip()
+
+        if not booking_ids:
+            messages.error(request, 'Selectionnez au moins une demande a traiter.')
+            return redirect('admin_center')
+
+        queryset = Booking.objects.filter(pk__in=booking_ids).select_related('room', 'user')
+        processed_count = 0
+        skipped_count = 0
+
+        for booking in queryset:
+            if action == 'approve' and booking.status in [Booking.STATUS_APPROVED, Booking.STATUS_CANCELLED]:
+                skipped_count += 1
+                continue
+            if action == 'reject' and booking.status in [Booking.STATUS_REJECTED, Booking.STATUS_CANCELLED]:
+                skipped_count += 1
+                continue
+            if action == 'cancel' and booking.status == Booking.STATUS_CANCELLED:
+                skipped_count += 1
+                continue
+
+            _apply_booking_action(booking, request.user, action, message_text)
+            processed_count += 1
+
+        if processed_count:
+            messages.success(request, f'{processed_count} demande(s) traitee(s) avec succes.')
+        if skipped_count:
+            messages.info(request, f'{skipped_count} demande(s) ignoree(s) car deja dans un statut incompatible.')
+        return redirect('admin_center')
+
+    status_filter = request.GET.get('status', Booking.STATUS_PENDING)
+    role_filter = request.GET.get('role', '')
+    activity_filter = request.GET.get('activity_type', '')
+    floor_filter = request.GET.get('floor', '')
+    search = request.GET.get('search', '').strip()
+
+    admin_bookings = Booking.objects.select_related('room', 'user', 'reviewed_by').order_by('date', 'start_time')
+    if status_filter:
+        admin_bookings = admin_bookings.filter(status=status_filter)
+    if role_filter:
+        admin_bookings = admin_bookings.filter(user__role=role_filter)
+    if activity_filter:
+        admin_bookings = admin_bookings.filter(activity_type=activity_filter)
+    if floor_filter:
+        admin_bookings = admin_bookings.filter(room__floor=floor_filter)
+    if search:
+        admin_bookings = admin_bookings.filter(
+            Q(room__code__icontains=search)
+            | Q(user__first_name__icontains=search)
+            | Q(user__last_name__icontains=search)
+            | Q(user__username__icontains=search)
+            | Q(purpose__icontains=search)
+        )
+
+    pending_base = Booking.objects.filter(status=Booking.STATUS_PENDING)
+    approved_base = Booking.objects.filter(status=Booking.STATUS_APPROVED)
+    floor_metrics = []
+    for floor in range(1, 6):
+        rooms_count = Room.objects.filter(is_active=True, floor=floor).count()
+        pending_count = pending_base.filter(room__floor=floor).count()
+        approved_count = approved_base.filter(room__floor=floor).count()
+        floor_metrics.append(
+            {
+                'floor': floor,
+                'rooms_count': rooms_count,
+                'pending_count': pending_count,
+                'approved_count': approved_count,
+                'load_index': pending_count + approved_count,
+            }
+        )
+
+    raw_role_breakdown = (
+        pending_base.values('user__role')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    role_labels = dict(CustomUser.ROLE_CHOICES)
+    role_breakdown = [
+        {'label': role_labels.get(row['user__role'], row['user__role']), 'total': row['total']}
+        for row in raw_role_breakdown
+    ]
+
+    raw_activity_breakdown = (
+        Booking.objects.values('activity_type')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    activity_labels = dict(Booking.ACTIVITY_TYPE_CHOICES)
+    activity_breakdown = [
+        {'label': activity_labels.get(row['activity_type'], row['activity_type']), 'total': row['total']}
+        for row in raw_activity_breakdown
+    ]
+    recent_decisions = (
+        Booking.objects.exclude(status=Booking.STATUS_PENDING)
+        .select_related('room', 'user', 'reviewed_by')
+        .order_by('-reviewed_at', '-created_at')[:8]
+    )
+
+    paginator = Paginator(admin_bookings, 15)
+    bookings_page = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'bookings': bookings_page,
+        'role_choices': CustomUser.ROLE_CHOICES,
+        'activity_choices': Booking.ACTIVITY_TYPE_CHOICES,
+        'status_choices': Booking.STATUS_CHOICES,
+        'floors': range(1, 6),
+        'status_filter': status_filter,
+        'role_filter': role_filter,
+        'activity_filter': activity_filter,
+        'floor_filter': floor_filter,
+        'search': search,
+        'review_form': BookingReviewForm(),
+        'summary': {
+            'pending': pending_base.count(),
+            'approved': approved_base.count(),
+            'rejected': Booking.objects.filter(status=Booking.STATUS_REJECTED).count(),
+            'cancelled': Booking.objects.filter(status=Booking.STATUS_CANCELLED).count(),
+        },
+        'floor_metrics': floor_metrics,
+        'role_breakdown': role_breakdown,
+        'activity_breakdown': activity_breakdown,
+        'recent_decisions': recent_decisions,
+    }
+    return render(request, 'sris/admin_center.html', context)
 
 
 @login_required
@@ -111,7 +294,7 @@ def profile_view(request):
 
 @login_required
 def room_list_view(request):
-    rooms = Room.objects.filter(is_active=True)
+    rooms_queryset = Room.objects.filter(is_active=True)
     capacity = request.GET.get('capacity')
     search = request.GET.get('search')
     equipment = request.GET.get('equipment')
@@ -120,12 +303,12 @@ def room_list_view(request):
 
     if capacity:
         try:
-            rooms = rooms.filter(capacity__gte=int(capacity))
+            rooms_queryset = rooms_queryset.filter(capacity__gte=int(capacity))
         except ValueError:
             messages.error(request, 'Capacite invalide.')
 
     if search:
-        rooms = rooms.filter(
+        rooms_queryset = rooms_queryset.filter(
             Q(code__icontains=search)
             | Q(name__icontains=search)
             | Q(location__icontains=search)
@@ -133,18 +316,35 @@ def room_list_view(request):
         )
 
     if equipment:
-        rooms = rooms.filter(equipment__icontains=equipment)
+        rooms_queryset = rooms_queryset.filter(equipment__icontains=equipment)
 
     if floor:
         try:
-            rooms = rooms.filter(floor=int(floor))
+            rooms_queryset = rooms_queryset.filter(floor=int(floor))
         except ValueError:
             messages.error(request, 'Etage invalide.')
 
     if room_type:
-        rooms = rooms.filter(room_type=room_type)
+        rooms_queryset = rooms_queryset.filter(room_type=room_type)
 
-    paginator = Paginator(rooms.order_by('floor', 'code'), 12)
+    filtered_rooms = list(rooms_queryset.order_by('floor', 'code'))
+    floors_summary = []
+    for level in range(1, 6):
+        floor_rooms = [room for room in filtered_rooms if room.floor == level]
+        if not floor_rooms:
+            continue
+        floors_summary.append(
+            {
+                'floor': level,
+                'rooms_count': len(floor_rooms),
+                'classrooms_count': len([room for room in floor_rooms if room.room_type == Room.TYPE_CLASSROOM]),
+                'labs_count': len([room for room in floor_rooms if room.room_type == Room.TYPE_LAB]),
+                'conferences_count': len([room for room in floor_rooms if room.room_type == Room.TYPE_CONFERENCE]),
+                'rooms': floor_rooms,
+            }
+        )
+
+    paginator = Paginator(filtered_rooms, 12)
     page_number = request.GET.get('page')
     rooms = paginator.get_page(page_number)
 
@@ -154,7 +354,8 @@ def room_list_view(request):
         {
             'rooms': rooms,
             'room_type_choices': Room.ROOM_TYPE_CHOICES,
-            'floors': range(1, 7),
+            'floors': range(1, 6),
+            'floors_summary': floors_summary,
         },
     )
 
@@ -163,7 +364,16 @@ def room_list_view(request):
 def room_detail_view(request, pk):
     room = get_object_or_404(Room, pk=pk)
     bookings = Booking.objects.filter(room=room, date__gte=timezone.localdate()).select_related('user').order_by('date', 'start_time')[:12]
-    return render(request, 'rooms/room_detail.html', {'room': room, 'bookings': bookings})
+    same_floor_rooms = (
+        Room.objects.filter(is_active=True, floor=room.floor)
+        .exclude(pk=room.pk)
+        .order_by('code')[:6]
+    )
+    return render(
+        request,
+        'rooms/room_detail.html',
+        {'room': room, 'bookings': bookings, 'same_floor_rooms': same_floor_rooms},
+    )
 
 
 @login_required
@@ -283,7 +493,8 @@ def booking_detail_view(request, pk):
     if booking.user != request.user and not request.user.is_staff:
         messages.error(request, "Vous n'avez pas la permission de voir cette reservation.")
         return redirect('booking_list')
-    return render(request, 'bookings/booking_detail.html', {'booking': booking})
+    review_form = BookingReviewForm(instance=booking) if request.user.is_staff else None
+    return render(request, 'bookings/booking_detail.html', {'booking': booking, 'review_form': review_form})
 
 
 @login_required
@@ -293,7 +504,7 @@ def booking_update_view(request, pk):
         messages.error(request, "Vous n'avez pas la permission de modifier cette reservation.")
         return redirect('booking_list')
 
-    if booking.status == 'ANNULEE':
+    if booking.status == Booking.STATUS_CANCELLED:
         messages.error(request, 'Impossible de modifier une reservation annulee.')
         return redirect('booking_list')
 
@@ -322,7 +533,7 @@ def booking_cancel_view(request, pk):
         messages.error(request, "Vous n'avez pas la permission d'annuler cette reservation.")
         return redirect('booking_list')
 
-    if booking.status == 'ANNULEE':
+    if booking.status == Booking.STATUS_CANCELLED:
         messages.error(request, 'Cette reservation est deja annulee.')
         return redirect('booking_list')
 
@@ -330,8 +541,7 @@ def booking_cancel_view(request, pk):
         messages.error(request, "L'annulation doit etre confirmee.")
         return redirect('booking_list')
 
-    booking.status = 'ANNULEE'
-    booking.save()
+    _apply_booking_action(booking, request.user, 'cancel')
     messages.success(request, 'Reservation annulee avec succes.')
     return redirect('booking_list')
 
@@ -347,17 +557,50 @@ def booking_confirm_view(request, pk):
         messages.error(request, 'La confirmation doit etre envoyee via le formulaire.')
         return redirect('booking_list')
 
-    if booking.status == 'CONFIRMEE':
+    if booking.status == Booking.STATUS_APPROVED:
         messages.info(request, 'Cette reservation est deja confirmee.')
         return redirect('booking_list')
 
-    if booking.status == 'ANNULEE':
+    if booking.status == Booking.STATUS_CANCELLED:
         messages.error(request, 'Impossible de confirmer une reservation annulee.')
         return redirect('booking_list')
 
-    booking.status = 'CONFIRMEE'
-    booking.save()
+    review_form = BookingReviewForm(request.POST, instance=booking)
+    if not review_form.is_valid():
+        messages.error(request, 'Le message admin est invalide.')
+        return redirect('booking_detail', pk=booking.pk)
+
+    _apply_booking_action(booking, request.user, 'approve', review_form.cleaned_data.get('admin_message', ''))
     messages.success(request, 'Reservation confirmee avec succes.')
+    return redirect('booking_list')
+
+
+@login_required
+def booking_reject_view(request, pk):
+    if not request.user.is_staff:
+        messages.error(request, "Vous n'avez pas la permission de refuser cette reservation.")
+        return redirect('booking_list')
+
+    booking = get_object_or_404(Booking, pk=pk)
+    if request.method != 'POST':
+        messages.error(request, 'Le refus doit etre envoye via le formulaire.')
+        return redirect('booking_detail', pk=booking.pk)
+
+    if booking.status == Booking.STATUS_REJECTED:
+        messages.info(request, 'Cette reservation est deja refusee.')
+        return redirect('booking_detail', pk=booking.pk)
+
+    if booking.status == Booking.STATUS_CANCELLED:
+        messages.error(request, 'Impossible de refuser une reservation annulee.')
+        return redirect('booking_detail', pk=booking.pk)
+
+    review_form = BookingReviewForm(request.POST, instance=booking)
+    if not review_form.is_valid():
+        messages.error(request, 'Le message admin est invalide.')
+        return redirect('booking_detail', pk=booking.pk)
+
+    _apply_booking_action(booking, request.user, 'reject', review_form.cleaned_data.get('admin_message', ''))
+    messages.success(request, 'Reservation refusee et notification preparee.')
     return redirect('booking_list')
 
 
@@ -383,7 +626,7 @@ def booking_availability_api(request):
     bookings = Booking.objects.filter(
         room=room,
         date=booking_date,
-        status__in=['EN_ATTENTE', 'CONFIRMEE'],
+        status__in=[Booking.STATUS_PENDING, Booking.STATUS_APPROVED],
     ).order_by('start_time').values('start_time', 'end_time', 'user__username', 'status')
 
     busy_times = [(booking['start_time'], booking['end_time']) for booking in bookings]
@@ -408,7 +651,7 @@ def booking_calendar_api(request):
     room_id = request.GET.get('room')
     status = request.GET.get('status')
 
-    bookings = Booking.objects.filter(status__in=['EN_ATTENTE', 'CONFIRMEE']).select_related('room', 'user')
+    bookings = Booking.objects.filter(status__in=[Booking.STATUS_PENDING, Booking.STATUS_APPROVED]).select_related('room', 'user')
 
     if room_id:
         bookings = bookings.filter(room_id=room_id)

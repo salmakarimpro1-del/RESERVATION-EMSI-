@@ -2,6 +2,8 @@ from datetime import datetime
 
 from rest_framework import serializers
 
+from bookings.models import Booking
+
 from .models import Room
 
 
@@ -35,4 +37,4 @@ class RoomSerializer(serializers.ModelSerializer):
 
     def get_upcoming_bookings_count(self, obj):
         today = datetime.now().date()
-        return obj.booking_set.filter(date__gte=today, status__in=['EN_ATTENTE', 'CONFIRMEE']).count()
+        return obj.booking_set.filter(date__gte=today, status__in=[Booking.STATUS_PENDING, Booking.STATUS_APPROVED]).count()

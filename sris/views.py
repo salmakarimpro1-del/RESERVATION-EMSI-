@@ -34,9 +34,12 @@ class AppSettingViewSet(viewsets.ModelViewSet):
         
         total_bookings = Booking.objects.count()
         today_bookings = Booking.objects.filter(date=today).count()
-        upcoming_bookings = Booking.objects.filter(date__gte=today).count()
-        confirmed_bookings = Booking.objects.filter(status='CONFIRMEE').count()
-        cancelled_bookings = Booking.objects.filter(status='ANNULEE').count()
+        upcoming_bookings = Booking.objects.filter(
+            date__gte=today,
+            status__in=[Booking.STATUS_PENDING, Booking.STATUS_APPROVED],
+        ).count()
+        confirmed_bookings = Booking.objects.filter(status=Booking.STATUS_APPROVED).count()
+        cancelled_bookings = Booking.objects.filter(status=Booking.STATUS_CANCELLED).count()
         
         # Statistiques par salle
         rooms_stats = Room.objects.annotate(

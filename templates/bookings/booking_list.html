@@ -20,6 +20,7 @@
                     <option value="">Tous</option>
                     <option value="EN_ATTENTE" {% if request.GET.status == 'EN_ATTENTE' %}selected{% endif %}>En attente</option>
                     <option value="CONFIRMEE" {% if request.GET.status == 'CONFIRMEE' %}selected{% endif %}>Confirmee</option>
+                    <option value="REFUSEE" {% if request.GET.status == 'REFUSEE' %}selected{% endif %}>Refusee</option>
                     <option value="ANNULEE" {% if request.GET.status == 'ANNULEE' %}selected{% endif %}>Annulee</option>
                 </select>
             </div>
@@ -52,6 +53,7 @@
                         <th>Salle</th>
                         <th>Date</th>
                         <th>Horaire</th>
+                        <th>Activite</th>
                         <th>Motif</th>
                         <th>Statut</th>
                         <th class="text-end">Actions</th>
@@ -66,6 +68,7 @@
                         </td>
                         <td>{{ booking.date }}</td>
                         <td>{{ booking.start_time }} - {{ booking.end_time }}</td>
+                        <td>{{ booking.get_activity_type_display }}<div class="small text-muted">{{ booking.attendees_count }} participants</div></td>
                         <td>{{ booking.purpose|truncatewords:10 }}</td>
                         <td><span class="status-badge status-{{ booking.status|lower }}">{{ booking.get_status_display }}</span></td>
                         <td class="text-end">
@@ -76,8 +79,12 @@
                                     {% csrf_token %}
                                     <button class="btn btn-sm btn-outline-success" type="submit">Confirmer</button>
                                 </form>
+                                <form method="post" action="{% url 'booking_reject' booking.id %}">
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Refuser</button>
+                                </form>
                                 {% endif %}
-                                {% if booking.status != 'ANNULEE' %}
+                                {% if booking.status != 'ANNULEE' and booking.status != 'REFUSEE' %}
                                 {% if booking.user == user or user.is_staff %}
                                 <a href="{% url 'booking_update' booking.id %}" class="btn btn-sm btn-outline-secondary">Modifier</a>
                                 <form method="post" action="{% url 'booking_cancel' booking.id %}">
@@ -90,7 +97,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted py-5">Aucune reservation trouvee.</td></tr>
+                    <tr><td colspan="7" class="text-center text-muted py-5">Aucune reservation trouvee.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

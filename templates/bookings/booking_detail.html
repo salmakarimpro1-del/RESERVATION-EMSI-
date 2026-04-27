@@ -9,13 +9,12 @@
         <p class="text-muted mb-0">{{ booking.room.code }} - {{ booking.date }}</p>
     </div>
     <div class="d-flex gap-2">
-        {% if booking.status != 'ANNULEE' %}
+        {% if booking.status != 'ANNULEE' and booking.status != 'REFUSEE' %}
         <a href="{% url 'booking_update' booking.id %}" class="btn btn-outline-secondary">Modifier</a>
         {% endif %}
         <a href="{% url 'booking_list' %}" class="btn btn-primary">Retour</a>
+    </div>
 </div>
-</div>
-{% endblock %}
 
 <div class="row g-4">
     <div class="col-lg-8">
@@ -28,16 +27,44 @@
                     <dd class="col-sm-8">{{ booking.date }}</dd>
                     <dt class="col-sm-4">Horaire</dt>
                     <dd class="col-sm-8">{{ booking.start_time }} - {{ booking.end_time }}</dd>
+                    <dt class="col-sm-4">Activite</dt>
+                    <dd class="col-sm-8">{{ booking.get_activity_type_display }}</dd>
+                    <dt class="col-sm-4">Participants</dt>
+                    <dd class="col-sm-8">{{ booking.attendees_count }}</dd>
                     <dt class="col-sm-4">Statut</dt>
                     <dd class="col-sm-8"><span class="status-badge status-{{ booking.status|lower }}">{{ booking.get_status_display }}</span></dd>
                     <dt class="col-sm-4">Demandeur</dt>
-                    <dd class="col-sm-8">{{ booking.user.username }}</dd>
+                    <dd class="col-sm-8">{{ booking.user.full_name_or_username }}<div class="small text-muted">{{ booking.user.profile_label }}</div></dd>
                     <dt class="col-sm-4">Motif</dt>
                     <dd class="col-sm-8">{{ booking.purpose }}</dd>
+                    <dt class="col-sm-4">Retour admin</dt>
+                    <dd class="col-sm-8">{{ booking.admin_message|default:'Aucun message admin.' }}</dd>
+                    <dt class="col-sm-4">Traitee par</dt>
+                    <dd class="col-sm-8">{{ booking.reviewed_by.full_name_or_username|default:'Non traitee' }}</dd>
                     <dt class="col-sm-4">Creee le</dt>
                     <dd class="col-sm-8">{{ booking.created_at }}</dd>
                 </dl>
             </div>
         </div>
     </div>
+    {% if user.is_staff %}
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Moderation admin</h2>
+                <form method="post" action="{% url 'booking_confirm' booking.id %}" class="mb-3">
+                    {% csrf_token %}
+                    {{ review_form.admin_message }}
+                    <button type="submit" class="btn btn-success w-100 mt-3">Approuver la demande</button>
+                </form>
+                <form method="post" action="{% url 'booking_reject' booking.id %}">
+                    {% csrf_token %}
+                    <textarea name="admin_message" class="form-control" rows="3" placeholder="Motif du refus ou consignes a suivre"></textarea>
+                    <button type="submit" class="btn btn-outline-danger w-100 mt-3">Refuser la demande</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
+{% endblock %}

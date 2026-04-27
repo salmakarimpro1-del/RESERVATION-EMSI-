@@ -13,6 +13,7 @@ class BookingSerializer(serializers.ModelSerializer):
     room = serializers.PrimaryKeyRelatedField(queryset=Room.objects.all())
     room_details = serializers.SerializerMethodField(read_only=True)
     conflicts = serializers.SerializerMethodField(read_only=True)
+    reviewed_by_name = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Booking
@@ -25,11 +26,17 @@ class BookingSerializer(serializers.ModelSerializer):
             'start_time',
             'end_time',
             'status',
+            'activity_type',
+            'attendees_count',
             'purpose',
+            'admin_message',
+            'reviewed_by',
+            'reviewed_by_name',
+            'reviewed_at',
             'conflicts',
             'created_at',
         ]
-        read_only_fields = ['id', 'user', 'created_at', 'conflicts']
+        read_only_fields = ['id', 'user', 'reviewed_by', 'reviewed_by_name', 'reviewed_at', 'created_at', 'conflicts']
 
     def get_room_details(self, obj):
         return {
@@ -43,11 +50,16 @@ class BookingSerializer(serializers.ModelSerializer):
             'equipment': obj.room.equipment,
         }
 
+    def get_reviewed_by_name(self, obj):
+        if not obj.reviewed_by:
+            return ''
+        return obj.reviewed_by.full_name_or_username
+
     def get_conflicts(self, obj):
         conflicts = Booking.objects.filter(
             room=obj.room,
             date=obj.date,
-            status__in=['EN_ATTENTE', 'CONFIRMEE'],
+            status__in=[Booking.STATUS_PENDING, Booking.STATUS_APPROVED],
             start_time__lt=obj.end_time,
             end_time__gt=obj.start_time,
         ).exclude(pk=obj.pk).values('id', 'start_time', 'end_time', 'user__username')
@@ -68,11 +80,15 @@ class BookingSerializer(serializers.ModelSerializer):
         if room and not room.is_active:
             raise serializers.ValidationError('Cette salle est inactive et ne peut pas etre reservee.')
 
+        attendees_count = attrs.get('attendees_count')
+        if room and attendees_count and attendees_count > room.capacity:
+            raise serializers.ValidationError('Le nombre de participants depasse la capacite de la salle.')
+
         if booking_date and room and start_time and end_time:
             conflicts = Booking.objects.filter(
                 room=room,
                 date=booking_date,
-                status__in=['EN_ATTENTE', 'CONFIRMEE'],
+                status__in=[Booking.STATUS_PENDING, Booking.STATUS_APPROVED],
                 start_time__lt=end_time,
                 end_time__gt=start_time,
             )
