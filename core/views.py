@@ -8,6 +8,7 @@ from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 from bookings.forms import BookingForm, BookingReviewForm
 from bookings.models import Booking
@@ -35,6 +36,10 @@ def _apply_booking_action(booking, reviewer, action, message_text=''):
         )
     elif action == 'cancel':
         booking.status = Booking.STATUS_CANCELLED
+        if message_text:
+            booking.admin_message = message_text
+    elif action == 'pending':
+        booking.status = Booking.STATUS_PENDING
         if message_text:
             booking.admin_message = message_text
     else:
@@ -185,6 +190,9 @@ def admin_center_view(request):
                 skipped_count += 1
                 continue
             if action == 'cancel' and booking.status == Booking.STATUS_CANCELLED:
+                skipped_count += 1
+                continue
+            if action == 'pending' and booking.status == Booking.STATUS_PENDING:
                 skipped_count += 1
                 continue
 
@@ -486,9 +494,22 @@ def booking_create_view(request):
                 notify_booking_created(booking)
                 messages.success(request, 'Reservation creee avec succes.')
                 return redirect('booking_list')
+            except ValidationError as e:
+                if hasattr(e, 'message_dict'):
+                    for field, errors in e.message_dict.items():
+                        for error in errors:
+                            messages.error(request, f"{field}: {error}" if field != '__all__' else error)
+                else:
+                    for error in e.messages:
+                        messages.error(request, error)
             except Exception as exc:
-                messages.error(request, str(exc))
+                messages.error(request, f"Erreur lors de l'enregistrement : {str(exc)}")
         else:
+            # Add specific field errors to messages if not visible
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        messages.error(request, error)
             messages.error(request, 'Merci de corriger les erreurs du formulaire.')
     else:
         initial_data = {}
@@ -583,12 +604,8 @@ def booking_confirm_view(request, pk):
         messages.error(request, 'Impossible de confirmer une reservation annulee.')
         return redirect('booking_list')
 
-    review_form = BookingReviewForm(request.POST, instance=booking)
-    if not review_form.is_valid():
-        messages.error(request, 'Le message admin est invalide.')
-        return redirect('booking_detail', pk=booking.pk)
-
-    _apply_booking_action(booking, request.user, 'approve', review_form.cleaned_data.get('admin_message', ''))
+    admin_message = request.POST.get('admin_message', '').strip()
+    _apply_booking_action(booking, request.user, 'approve', admin_message)
     messages.success(request, 'Reservation confirmee avec succes.')
     return redirect('booking_list')
 
@@ -612,13 +629,30 @@ def booking_reject_view(request, pk):
         messages.error(request, 'Impossible de refuser une reservation annulee.')
         return redirect('booking_detail', pk=booking.pk)
 
-    review_form = BookingReviewForm(request.POST, instance=booking)
-    if not review_form.is_valid():
-        messages.error(request, 'Le message admin est invalide.')
+    admin_message = request.POST.get('admin_message', '').strip()
+    _apply_booking_action(booking, request.user, 'reject', admin_message)
+    messages.success(request, 'Reservation refusee et notification preparee.')
+    return redirect('booking_list')
+
+
+@login_required
+def booking_pending_view(request, pk):
+    if not request.user.is_staff:
+        messages.error(request, "Vous n'avez pas la permission de modifier cette reservation.")
+        return redirect('booking_list')
+
+    booking = get_object_or_404(Booking, pk=pk)
+    if request.method != 'POST':
+        messages.error(request, 'L action doit etre envoyee via le formulaire.')
         return redirect('booking_detail', pk=booking.pk)
 
-    _apply_booking_action(booking, request.user, 'reject', review_form.cleaned_data.get('admin_message', ''))
-    messages.success(request, 'Reservation refusee et notification preparee.')
+    if booking.status == Booking.STATUS_PENDING:
+        messages.info(request, 'Cette reservation est deja en attente.')
+        return redirect('booking_detail', pk=booking.pk)
+
+    admin_message = request.POST.get('admin_message', '').strip()
+    _apply_booking_action(booking, request.user, 'pending', admin_message)
+    messages.success(request, 'Reservation remise en attente.')
     return redirect('booking_list')
 
 

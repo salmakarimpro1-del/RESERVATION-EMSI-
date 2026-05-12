@@ -17,6 +17,17 @@
             <div class="card-body">
                 <form method="post" novalidate>
                     {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger mb-4">
+                        <ul class="mb-0">
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
                     <div class="row g-3">
                         {% for field in form %}
                         <div class="{% if field.name == 'purpose' %}col-12{% else %}col-md-6{% endif %}">

@@ -1,147 +1,102 @@
-# EMSI Booking - Plateforme de reservation des salles
+# 🏫 EMSI Booking - Plateforme de Réservation de Salles
 
-Application Django de reservation et de pilotage des salles EMSI, pensee pour un usage reel:
-- inscription de nouveaux utilisateurs
-- connexion par email ou Google
-- soumission de demandes de reservation
-- approbation par un admin central
-- suivi des salles, des etages et des decisions
+![EMSI Banner](https://img.shields.io/badge/EMSI-Booking-008144?style=for-the-badge)
+![Django](https://img.shields.io/badge/Django-5.2-092E20?style=for-the-badge&logo=django)
+![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-7952B3?style=for-the-badge&logo=bootstrap)
+![Status](https://img.shields.io/badge/Status-Production--Ready-success?style=for-the-badge)
 
-## Fonctionnalites
+**EMSI Booking** est une solution complète et moderne de gestion et de réservation de salles conçue spécifiquement pour les besoins de l'EMSI. Elle permet aux étudiants et professeurs de réserver des espaces de travail tout en offrant aux administrateurs un contrôle total sur les flux de validation.
 
-- comptes utilisateurs reels: etudiant, enseignant, professeur
-- email unique et profil EMSI complet
-- connexion web, API REST et JWT
-- connexion Google OAuth
-- creation, modification et annulation de reservations
-- workflow admin: en attente, approuvee, refusee, annulee
-- centre d'administration avec filtres et actions groupees
-- notifications email sur creation et traitement des demandes
-- calendrier de reservations et supervision par etage
-- regles metier reelles:
-  - prevention des conflits
-  - capacite maximale des salles
-  - duree minimale et maximale
-  - fenetre de reservation configurable
-  - horaires de reservation configurables
+---
 
-## Stack
+## ✨ Points Forts & Fonctionnalités
 
-- Django 5.2
-- Django REST Framework
-- django-allauth
-- SimpleJWT
-- WhiteNoise
-- Bootstrap 5
-- FullCalendar
+### 👤 Expérience Utilisateur (Frontend)
+- **Interface Premium** : Design moderne avec Glassmorphism, animations fluides et thèmes harmonieux.
+- **Onboarding Simplifié** : Inscription rapide avec validation d'email unique.
+- **Social Login** : Connexion ultra-rapide via **Google OAuth**.
+- **Dashboard Intuitif** : Vue d'ensemble des réservations, calendrier interactif (FullCalendar) et notifications en temps réel.
+- **Réservations Flexibles** : Choix de la salle, de l'étage et de la durée (jusqu'à **8 heures**).
 
-## Installation locale
+### 🛡️ Administration & Contrôle
+- **Admin Center Centralisé** : Gestion des demandes avec filtrage avancé et actions groupées.
+- **Workflow de Modération** : Approuver, Refuser ou Mettre en attente les demandes avec messages personnalisés.
+- **Détection de Conflits** : Algorithme intelligent empêchant les doubles réservations sur le même créneau.
+- **Paramètres Dynamiques** : Configuration de la durée max, des horaires d'ouverture et de la fenêtre de réservation.
 
+---
+
+## 🚀 Installation Rapide
+
+### 1. Prérequis
+- Python 3.10+
+- Un environnement virtuel (recommandé)
+
+### 2. Clonage et Dépendances
 ```bash
+git clone https://github.com/salmakarimpro1-del/RESERVATION-EMSI-.git
+cd RESERVATION-EMSI-
 pip install -r requirements.txt
-copy .env.example .env
+```
+
+### 3. Configuration
+Créez un fichier `.env` à la racine (utilisez `.env.example` comme modèle) :
+```env
+DJANGO_DEBUG=True
+GOOGLE_CLIENT_ID=votre_id
+GOOGLE_CLIENT_SECRET=votre_secret
+```
+
+### 4. Initialisation
+```bash
 python manage.py migrate
-python manage.py seed_demo
+python manage.py seed_demo  # Pour avoir des données de test
+```
+
+### 5. Lancement
+Utilisez le lanceur rapide (Windows) :
+```bash
+run_emsi.bat
+```
+Ou manuellement :
+```bash
 python manage.py runserver
 ```
 
-## Acces local
+---
 
-- web: [http://127.0.0.1:8000/login/](http://127.0.0.1:8000/login/)
-- admin Django: [http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/)
-- API: [http://127.0.0.1:8000/api/](http://127.0.0.1:8000/api/)
+## 🛠️ Stack Technique
 
-## Comptes de demonstration
+- **Backend** : Django 5.2.7, Django REST Framework
+- **Frontend** : HTML5, Vanilla JS, Bootstrap 5.3, FullCalendar 6
+- **Auth** : Django-allauth (Google OAuth), SimpleJWT
+- **Base de données** : SQLite (Dev), PostgreSQL (Prod ready)
+- **Design** : Custom CSS, Glassmorphism, Outfit Font
 
-- `admin / admin123`
-- `fatine / password123`
-- `salma / password123`
-- `youssef / password123`
+---
 
-## Commandes utiles
+## 📂 Structure du Projet
 
-```bash
-python manage.py check
-python manage.py test bookings rooms users
-python manage.py seed_demo
-python manage.py createsuperuser
-python manage.py collectstatic
-```
+- `core/` : Configuration centrale, paramètres et context processors.
+- `bookings/` : Logique métier des réservations et validations.
+- `rooms/` : Gestion des salles, équipements et étages.
+- `users/` : Modèles utilisateurs personnalisés et adaptateurs sociaux.
+- `templates/` : Interfaces utilisateur organisées par modules.
+- `static/` : Assets, images et styles CSS.
 
-## Configuration production
+---
 
-### 1. Variables d'environnement
+## 👨‍💻 Administration
 
-Copier `.env.example` puis renseigner:
-- `DJANGO_SECRET_KEY`
-- `DJANGO_DEBUG=False`
-- `DJANGO_ALLOWED_HOSTS`
-- `DJANGO_CSRF_TRUSTED_ORIGINS`
-- `DATABASE_URL`
-- `EMAIL_*`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
+Accédez au centre d'administration via :
+- **Dashboard Admin** : `/admin-center/`
+- **Django Admin** : `/admin/`
 
-### 2. Base de donnees
+**Comptes de test :**
+- Admin : `admin / admin123`
+- Étudiant : `youssef / password123`
 
-Par defaut le projet utilise SQLite.
+---
 
-Pour la production, utiliser PostgreSQL via:
-
-```env
-DATABASE_URL=postgresql://user:password@host:5432/emsi_booking
-```
-
-### 3. Emails reels
-
-Configurer un SMTP reel pour:
-- l'accueil des nouveaux utilisateurs
-- les notifications de nouvelles demandes
-- les validations/refus/annulations admin
-
-Exemple:
-
-```env
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.office365.com
-EMAIL_PORT=587
-EMAIL_HOST_USER=...
-EMAIL_HOST_PASSWORD=...
-EMAIL_USE_TLS=True
-DEFAULT_FROM_EMAIL=noreply@votre-domaine.ma
-```
-
-### 4. Fichiers statiques
-
-Le projet est prepare pour WhiteNoise:
-
-```bash
-python manage.py collectstatic --noinput
-```
-
-### 5. Lancement serveur
-
-Exemple Linux:
-
-```bash
-gunicorn core.wsgi:application --bind 0.0.0.0:8000
-```
-
-## Regles metier configurables
-
-Les regles suivantes sont stockees dans `AppSetting`:
-- `MAX_BOOKING_DAYS`
-- `MIN_BOOKING_DURATION`
-- `MAX_BOOKING_DURATION`
-- `WORKDAY_START_HOUR`
-- `WORKDAY_END_HOUR`
-
-## Qualite
-
-- validations serveur sur formulaires, serializers et modeles
-- tests backend automatisees
-- smoke test locale du parcours utilisateur et admin
-
-## Statut
-
-Base solide pour deployment reel EMSI, avec onboarding utilisateur, administration centrale et reservation exploitable en production.
+## 📝 Licence & Auteurs
+Développé pour l'**EMSI**. Tous droits réservés.

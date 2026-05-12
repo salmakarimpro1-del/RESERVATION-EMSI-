@@ -1,6 +1,11 @@
 # Résumé des modifications - Backend PFA
 
-## 📝 Changements effectués
+## 📝 Changements effectués (Dernières mises à jour - Mai 2026)
+
+### 🆕 Nouvelles fonctionnalités & Correctifs
+- ✅ **Notification Automatique** : Correction du déclenchement de `notify_booking_created` lors de la création d'une réservation.
+- ✅ **Export iCal (.ics)** : Ajout de l'action `export_ics` permettant aux utilisateurs de télécharger leur réservation directement dans leur calendrier (Outlook, Google Calendar, Apple Calendar).
+- ✅ **Optimisation Backend** : Validation renforcée lors de la création de réservations.
 
 ### 1. Structure et Configuration
 - ✅ Ajout de `django-filter` dans INSTALLED_APPS

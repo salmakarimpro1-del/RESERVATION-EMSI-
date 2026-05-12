@@ -1,41 +1,320 @@
 {% extends 'base.html' %}
+{% load static %}
 {% load socialaccount %}
 
 {% block title %}Connexion | EMSI Booking{% endblock %}
 
+{% block extra_css %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+    :root {
+        --emsi-green: #008144;
+        --emsi-blue: #005596;
+        --glass-white: rgba(255, 255, 255, 0.92);
+        --text-dark: #1e293b;
+    }
+
+    body {
+        font-family: 'Outfit', sans-serif;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        overflow-x: hidden;
+        background: #f1f5f9; /* Fallback */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Animated background */
+    .bg-animation {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: linear-gradient(135deg, var(--emsi-green) 0%, var(--emsi-blue) 100%);
+        overflow: hidden;
+    }
+
+    .bg-animation span {
+        position: absolute;
+        display: block;
+        width: 20vw;
+        height: 20vw;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: float 25s infinite linear;
+        bottom: -20vw;
+    }
+
+    .bg-animation span:nth-child(1) { left: 10%; width: 30vw; height: 30vw; animation-delay: 0s; }
+    .bg-animation span:nth-child(2) { left: 40%; width: 15vw; height: 15vw; animation-delay: 2s; animation-duration: 17s; }
+    .bg-animation span:nth-child(3) { left: 70%; width: 25vw; height: 25vw; animation-delay: 4s; }
+    .bg-animation span:nth-child(4) { left: 85%; width: 10vw; height: 10vw; animation-delay: 1s; animation-duration: 12s; }
+
+    @keyframes float {
+        0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+        50% { opacity: 0.3; }
+        100% { transform: translateY(-120vh) rotate(360deg); opacity: 0; }
+    }
+
+    .login-wrapper {
+        width: 100%;
+        max-width: 440px;
+        margin: 20px;
+        z-index: 1;
+    }
+
+    .glass-card {
+        background: var(--glass-white);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 30px;
+        padding: 40px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        animation: cardIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes cardIn {
+        from { opacity: 0; transform: scale(0.95) translateY(30px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .brand-logo {
+        width: 180px;
+        height: auto;
+        margin-bottom: 25px;
+        filter: drop-shadow(0 4px 10px rgba(0,0,0,0.05));
+    }
+
+    .welcome-text h1 {
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 5px;
+        font-size: 1.85rem;
+    }
+
+    .welcome-text p {
+        color: #64748b;
+        font-size: 0.95rem;
+        margin-bottom: 30px;
+    }
+
+    .input-group-modern {
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+    .input-group-modern i {
+        position: absolute;
+        left: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 1.1rem;
+        transition: color 0.3s;
+    }
+
+    .input-group-modern .form-control {
+        border-radius: 16px;
+        padding: 14px 14px 14px 50px;
+        border: 2px solid #f1f5f9;
+        background: #f8fafc;
+        font-size: 0.95rem;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+
+    .input-group-modern .form-control:focus {
+        border-color: var(--emsi-green);
+        background: #fff;
+        box-shadow: 0 0 0 5px rgba(0, 129, 68, 0.08);
+    }
+
+    .input-group-modern .form-control:focus + i {
+        color: var(--emsi-green);
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, var(--emsi-green) 0%, #00a859 100%);
+        color: white;
+        border: none;
+        border-radius: 16px;
+        padding: 15px;
+        font-weight: 700;
+        font-size: 1rem;
+        width: 100%;
+        margin-top: 10px;
+        transition: all 0.3s;
+        box-shadow: 0 10px 20px -5px rgba(0, 129, 68, 0.4);
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 25px -5px rgba(0, 129, 68, 0.5);
+    }
+
+    .btn-google {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: #fff;
+        border: 2px solid #f1f5f9;
+        border-radius: 16px;
+        padding: 12px;
+        width: 100%;
+        font-weight: 600;
+        color: #475569;
+        text-decoration: none !important;
+        transition: all 0.3s;
+        margin-bottom: 25px;
+    }
+
+    .btn-google:hover {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        transform: translateY(-2px);
+    }
+
+    .divider {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        margin-bottom: 25px;
+        color: #94a3b8;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .divider::before, .divider::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .divider:not(:empty)::before { margin-right: 1em; }
+    .divider:not(:empty)::after { margin-left: 1em; }
+
+    .footer-links {
+        margin-top: 30px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .footer-links a {
+        color: var(--emsi-blue);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: color 0.3s;
+    }
+
+    .footer-links a:hover {
+        color: var(--emsi-green);
+    }
+
+    .forgot-link {
+        color: #94a3b8 !important;
+        font-weight: 500 !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+        .glass-card { padding: 30px 20px; }
+        .welcome-text h1 { font-size: 1.5rem; }
+    }
+
+    /* Hide base elements */
+    .app-shell, .navbar { display: none !important; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card shadow-sm" style="width:min(100%, 460px);">
-    <div class="card-body p-4 p-lg-5">
-        <div class="text-center mb-4">
-            <div class="metric-icon mx-auto mb-3"><i class="fa-solid fa-school"></i></div>
-            <h1 class="h3 mb-1">Connexion</h1>
-            <p class="text-muted mb-0">Plateforme de reservation des salles EMSI</p>
+<div class="bg-animation">
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+</div>
+
+<div class="login-wrapper">
+    <div class="glass-card">
+        <div class="text-center">
+            <img src="{% static 'images/emsi-logo-large.jpg' %}" alt="EMSI" class="brand-logo">
+            <div class="welcome-text">
+                <h1>Connexion</h1>
+                <p>Réservez votre espace en un clic</p>
+            </div>
         </div>
 
         {% if google_oauth_enabled %}
-        <a class="btn btn-outline-dark w-100 mb-3" href="{% provider_login_url 'google' %}">
-            <i class="fa-brands fa-google me-2"></i>Continuer avec Google
+        <a href="{% provider_login_url 'google' %}" class="btn-google">
+            <svg width="22" height="22" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+            </svg>
+            Continuer avec Google
         </a>
-        <div class="text-center text-muted small mb-3">ou</div>
+        <div class="divider">OU UTILISEZ VOTRE COMPTE</div>
         {% endif %}
 
-        <form method="post" action="{% url 'login' %}">
+        {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'danger' }} rounded-4 py-2 px-3 small border-0 shadow-sm" style="background: #fff1f2; color: #e11d48;">
+                <i class="fa-solid fa-circle-exclamation me-2"></i> {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'login' %}" id="loginForm">
             {% csrf_token %}
-            <div class="mb-3">
-                <label for="username" class="form-label">Email ou nom d'utilisateur</label>
-                <input type="text" class="form-control" id="username" name="username" required>
+            <div class="input-group-modern">
+                <input type="text" class="form-control" id="username" name="username" placeholder="Email ou Utilisateur" required>
+                <i class="fa-solid fa-user"></i>
             </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">Mot de passe</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+            
+            <div class="input-group-modern">
+                <input type="password" class="form-control" id="password" name="password" placeholder="Mot de passe" required>
+                <i class="fa-solid fa-lock"></i>
             </div>
-            <button type="submit" class="btn btn-primary w-100">Se connecter</button>
+
+            <button type="submit" class="btn-submit" id="submitBtn">
+                <span class="btn-text">Se connecter</span>
+            </button>
         </form>
 
-        <div class="d-flex justify-content-between align-items-center mt-3 small">
-            <a href="{% url 'password_reset' %}" class="text-decoration-none">Mot de passe oublie</a>
-            <a href="{% url 'register' %}" class="text-decoration-none">Creer un compte</a>
+        <div class="footer-links">
+            <a href="{% url 'password_reset' %}" class="forgot-link">Mot de passe oublié ?</a>
+            <div>
+                Pas encore de compte ? <a href="{% url 'register' %}">Inscrivez-vous</a>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.getElementById('loginForm').addEventListener('submit', function() {
+        const btn = document.getElementById('submitBtn');
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Connexion...';
+        btn.style.opacity = '0.8';
+        btn.disabled = true;
+    });
+
+    // Cleanup base layout for full immersion
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.app-shell, .navbar').forEach(el => el.style.display = 'none');
+    });
+</script>
 {% endblock %}

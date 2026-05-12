@@ -10,14 +10,14 @@
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
     <style>
         :root {
-            --brand: #1f4e79;
-            --brand-soft: #eaf3fb;
-            --accent: #0d6efd;
+            --brand: #008144;
+            --brand-soft: #e8f5e9;
+            --accent: #005596;
             --success: #198754;
             --warning: #fd7e14;
             --danger: #dc3545;
-            --surface: #f5f7fb;
-            --text: #1f2937;
+            --surface: #f8fafc;
+            --text: #0f172a;
         }
 
         body {
@@ -31,7 +31,7 @@
         }
 
         .navbar {
-            background: linear-gradient(135deg, #16324f, var(--brand));
+            background: linear-gradient(135deg, #006a38, var(--brand));
         }
 
         .navbar-brand {
@@ -100,7 +100,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #16324f, #2d6ea3);
+            background: linear-gradient(135deg, #006a38, #008144);
             padding: 1rem;
         }
 
@@ -122,8 +122,9 @@
     {% if user.is_authenticated %}
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid px-3 px-lg-4">
-            <a class="navbar-brand" href="{% url 'dashboard' %}">
-                <i class="fa-solid fa-school me-2"></i>{{ platform_short_name }}
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'dashboard' %}">
+                <img src="{% static 'images/emsi-logo-large.jpg' %}" alt="EMSI" height="40" class="rounded bg-white p-1">
+                <span>{{ platform_short_name }}</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -153,29 +154,38 @@
     {% if user.is_authenticated %}
     <div class="container-fluid app-shell">
         <div class="row g-0">
-            <aside class="col-lg-2 col-md-3 sidebar p-3">
-                <nav class="nav flex-column">
+            <aside class="col-lg-2 col-md-3 sidebar p-3 shadow-sm">
+                <div class="small text-uppercase fw-bold text-muted mb-3 px-3" style="font-size: 0.7rem; letter-spacing: 1px;">Général</div>
+                <nav class="nav flex-column mb-4">
                     <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
                         <i class="fa-solid fa-chart-line me-2"></i>Dashboard
                     </a>
                     <a class="nav-link {% if 'room' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'room_list' %}">
                         <i class="fa-solid fa-door-open me-2"></i>Salles
                     </a>
-                    <a class="nav-link {% if 'booking' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'booking_list' %}">
-                        <i class="fa-solid fa-calendar-check me-2"></i>Reservations
-                    </a>
-                    {% if user.is_staff %}
-                    <a class="nav-link {% if request.resolver_match.url_name == 'admin_center' %}active{% endif %}" href="{% url 'admin_center' %}">
-                        <i class="fa-solid fa-shield-halved me-2"></i>Admin Center
-                    </a>
-                    {% endif %}
                     <a class="nav-link {% if request.resolver_match.url_name == 'booking_calendar' %}active{% endif %}" href="{% url 'booking_calendar' %}">
                         <i class="fa-solid fa-calendar-days me-2"></i>Calendrier
                     </a>
-                    <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' %}">
-                        <i class="fa-solid fa-user me-2"></i>Profil
+                </nav>
+
+                <div class="small text-uppercase fw-bold text-muted mb-3 px-3" style="font-size: 0.7rem; letter-spacing: 1px;">Réservations</div>
+                <nav class="nav flex-column mb-4">
+                    <a class="nav-link {% if 'booking' in request.resolver_match.url_name and request.resolver_match.url_name != 'booking_calendar' %}active{% endif %}" href="{% url 'booking_list' %}">
+                        <i class="fa-solid fa-calendar-check me-2"></i>Mes demandes
                     </a>
                 </nav>
+
+                {% if user.is_staff %}
+                <div class="small text-uppercase fw-bold text-muted mb-3 px-3" style="font-size: 0.7rem; letter-spacing: 1px;">Administration</div>
+                <nav class="nav flex-column">
+                    <a class="nav-link d-flex justify-content-between align-items-center {% if request.resolver_match.url_name == 'admin_center' %}active{% endif %}" href="{% url 'admin_center' %}">
+                        <span><i class="fa-solid fa-shield-halved me-2"></i>Admin Center</span>
+                        {% if pending_bookings_count > 0 %}
+                        <span class="badge rounded-pill bg-danger" style="font-size: 0.65rem;">{{ pending_bookings_count }}</span>
+                        {% endif %}
+                    </a>
+                </nav>
+                {% endif %}
             </aside>
             <main class="col-lg-10 col-md-9 content-wrap">
                 {% if messages %}

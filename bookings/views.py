@@ -30,7 +30,8 @@ class BookingViewSet(viewsets.ModelViewSet):
         return Booking.objects.select_related('room', 'user').filter(user=user).order_by('-created_at')
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        booking = serializer.save(user=self.request.user)
+        notify_booking_created(booking)
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def check_availability(self, request):
@@ -46,18 +47,13 @@ class BookingViewSet(viewsets.ModelViewSet):
         except Room.DoesNotExist:
             return Response({'error': 'Salle non trouvee.'}, status=status.HTTP_404_NOT_FOUND)
 
-        bookings = Booking.objects.filter(
-            room=room,
-            date=booking_date,
-            status__in=[Booking.STATUS_PENDING, Booking.STATUS_APPROVED],
-        ).order_by('start_time').values('start_time', 'end_time', 'user__username', 'status')
+        availability = Booking.objects.get_availability(room, booking_date)
 
         return Response(
             {
                 'room': {'id': room.id, 'code': room.code, 'name': room.display_name, 'capacity': room.capacity},
                 'date': booking_date,
-                'bookings': list(bookings),
-                'availability': self._calculate_availability(list(bookings)),
+                'availability': availability,
             }
         )
 
@@ -117,23 +113,35 @@ class BookingViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(bookings, many=True)
         return Response(serializer.data)
 
-    @staticmethod
-    def _calculate_availability(bookings):
-        available_slots = []
-        busy_times = [(b['start_time'], b['end_time']) for b in bookings]
-        busy_times.sort()
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def export_ics(self, request, pk=None):
+        booking = self.get_object()
+        from django.http import HttpResponse
+        import uuid
 
-        from datetime import time
+        # Simple iCal content
+        start_dt = datetime.combine(booking.date, booking.start_time).strftime('%Y%m%dT%H%M%S')
+        end_dt = datetime.combine(booking.date, booking.end_time).strftime('%Y%m%dT%H%M%S')
+        now_dt = datetime.now().strftime('%Y%m%dT%H%M%S')
 
-        current_time = time(8, 0)
-        end_of_day = time(18, 0)
+        lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//EMSI Booking//SRIS//FR',
+            'BEGIN:VEVENT',
+            f'UID:{uuid.uuid4()}',
+            f'DTSTAMP:{now_dt}',
+            f'DTSTART:{start_dt}',
+            f'DTEND:{end_dt}',
+            f'SUMMARY:Reservation EMSI - {booking.room.code}',
+            f'DESCRIPTION:Reservation de salle par {booking.user.full_name_or_username}. Activite: {booking.get_activity_type_display()}.',
+            f'LOCATION:{booking.room.display_name} - {booking.room.building}',
+            'END:VEVENT',
+            'END:VCALENDAR',
+        ]
 
-        for start, end in busy_times:
-            if current_time < start:
-                available_slots.append({'start': str(current_time), 'end': str(start)})
-            current_time = max(current_time, end)
+        response = HttpResponse('\r\n'.join(lines), content_type='text/calendar')
+        response['Content-Disposition'] = f'attachment; filename="reservation_{booking.id}.ics"'
+        return response
 
-        if current_time < end_of_day:
-            available_slots.append({'start': str(current_time), 'end': str(end_of_day)})
 
-        return available_slots

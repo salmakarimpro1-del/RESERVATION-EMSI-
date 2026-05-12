@@ -57,10 +57,15 @@
                     {{ review_form.admin_message }}
                     <button type="submit" class="btn btn-success w-100 mt-3">Approuver la demande</button>
                 </form>
-                <form method="post" action="{% url 'booking_reject' booking.id %}">
+                <form method="post" action="{% url 'booking_reject' booking.id %}" class="mb-3">
                     {% csrf_token %}
                     <textarea name="admin_message" class="form-control" rows="3" placeholder="Motif du refus ou consignes a suivre"></textarea>
                     <button type="submit" class="btn btn-outline-danger w-100 mt-3">Refuser la demande</button>
+                </form>
+                <form method="post" action="{% url 'booking_pending' booking.id %}">
+                    {% csrf_token %}
+                    <textarea name="admin_message" class="form-control" rows="2" placeholder="Motif de mise en attente (optionnel)"></textarea>
+                    <button type="submit" class="btn btn-outline-warning w-100 mt-2">Remettre en attente</button>
                 </form>
             </div>
         </div>

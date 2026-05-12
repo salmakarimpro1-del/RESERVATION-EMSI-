@@ -56,3 +56,13 @@ class Room(models.Model):
         if self.room_type == self.TYPE_LAB:
             return 'LI'
         return 'CONF'
+
+    def is_available(self, date, start_time, end_time):
+        from bookings.models import Booking
+        return not Booking.objects.has_conflict(self, date, start_time, end_time)
+
+    def get_today_bookings(self):
+        from django.utils import timezone
+        from bookings.models import Booking
+        return Booking.objects.filter(room=self, date=timezone.now().date()).active()
+

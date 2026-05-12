@@ -8,6 +8,14 @@ def build_username(email, first_name='', last_name=''):
 
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
+    def pre_social_login(self, request, sociallogin):
+        print(f"DEBUG: Pre-social login for {sociallogin.user.email}")
+        return super().pre_social_login(request, sociallogin)
+
+    def authentication_error(self, request, provider_id, error=None, exception=None, extra_context=None):
+        print(f"DEBUG: Auth error for {provider_id}: {error}, {exception}")
+        return super().authentication_error(request, provider_id, error, exception, extra_context)
+
     def populate_user(self, request, sociallogin, data):
         user = super().populate_user(request, sociallogin, data)
         email = data.get('email', '')

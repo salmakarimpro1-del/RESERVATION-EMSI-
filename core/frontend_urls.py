@@ -30,6 +30,7 @@ urlpatterns = [
     path('bookings/<int:pk>/cancel/', views.booking_cancel_view, name='booking_cancel'),
     path('bookings/<int:pk>/confirm/', views.booking_confirm_view, name='booking_confirm'),
     path('bookings/<int:pk>/reject/', views.booking_reject_view, name='booking_reject'),
+    path('bookings/<int:pk>/pending/', views.booking_pending_view, name='booking_pending'),
     path('bookings/calendar/', views.booking_calendar_view, name='booking_calendar'),
     
     # AJAX endpoints for frontend
